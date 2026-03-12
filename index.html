@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sunday School Manager</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #5d6d7e;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --accent: #3498db;
+            --warning: #f39c12;
+            --bg: #f4f7f6;
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg); padding: 20px; display: flex; flex-direction: column; align-items: center; margin: 0; }
+        .container { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 480px; box-sizing: border-box; }
+        
+        h2 { color: var(--primary); margin: 0 0 5px 0; text-align: center; font-size: 24px; }
+        .counter-box { text-align: center; color: var(--secondary); font-size: 14px; margin-bottom: 25px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        
+        /* Form Styling */
+        .add-section { background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #eee; }
+        .form-label { font-size: 12px; font-weight: bold; color: var(--secondary); margin-bottom: 5px; display: block; }
+        .input-stack { display: flex; flex-direction: column; gap: 10px; }
+        .input-row { display: flex; gap: 8px; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; outline: none; transition: border 0.2s; }
+        input:focus { border-color: var(--accent); }
+        .btn-add { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 5px; }
+        .btn-add:hover { background: #1a252f; }
+
+        /* List Styling */
+        .list-container { display: flex; flex-direction: column; gap: 12px; }
+        .kid-row { display: flex; align-items: stretch; background: #fff; border: 1px solid #eef2f3; border-radius: 10px; transition: 0.2s; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        
+        .tap-area { flex: 1; display: flex; justify-content: space-between; align-items: center; padding: 15px; cursor: pointer; }
+        .tap-area:hover { background-color: #fcfdfe; }
+
+        .info-container { display: flex; flex-direction: column; gap: 2px; }
+        .name { font-weight: 700; color: var(--primary); font-size: 18px; }
+        .parent-link { font-size: 13px; color: var(--warning); font-weight: 600; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+        .time-label { font-size: 11px; color: var(--accent); font-weight: bold; margin-top: 4px; }
+        
+        .status-badge { padding: 8px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; min-width: 80px; text-align: center; }
+        .status-out { background-color: #e8f5e9; color: var(--success); border: 1px solid #c8e6c9; }
+        .status-in { background-color: #ffebee; color: var(--danger); border: 1px solid #ffcdd2; }
+
+        .btn-delete { background: none; border: none; color: #d1d1d1; font-size: 22px; padding: 0 15px; cursor: pointer; border-left: 1px solid #f0f0f0; transition: 0.2s; }
+        .btn-delete:hover { color: var(--danger); background-color: #fff5f5; }
+
+        @media (max-width: 400px) {
+            .input-row { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Sunday School</h2>
+    <div id="counter" class="counter-box">0 Kids Checked In</div>
+    
+    <div class="add-section">
+        <div class="input-stack">
+            <div>
+                <span class="form-label">CHILD NAME</span>
+                <input type="text" id="newKidName" placeholder="Child's name..." style="width: 100%; box-sizing: border-box;">
+            </div>
+            <div class="input-row">
+                <div style="flex: 1;">
+                    <span class="form-label">PARENT/GUARDIAN</span>
+                    <input type="text" id="parentName" placeholder="Name" style="width: 100%; box-sizing: border-box;">
+                </div>
+                <div style="flex: 1;">
+                    <span class="form-label">CONTACT PHONE</span>
+                    <input type="tel" id="parentContact" placeholder="0400 000 000" style="width: 100%; box-sizing: border-box;">
+                </div>
+            </div>
+            <button class="btn-add" onclick="addToRoster()">+ Add to Class</button>
+        </div>
+    </div>
+
+    <div id="rosterList" class="list-container">
+        </div>
+</div>
+
+<script>
+    // REPLACE THIS URL with your latest Google Apps Script Web App URL
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyf-KbrYmwm3g69qZgInfNPwIK8Kcw2B5IOaFWTpkqMlfJebNyNnEtET01YCrH1Hy2WAg/exec";
+    
+    let roster = JSON.parse(localStorage.getItem('ss_roster_v3')) || [];
+    let sessionData = JSON.parse(localStorage.getItem('ss_session_data_v3')) || {};
+
+    function render() {
+        const list = document.getElementById('rosterList');
+        const counter = document.getElementById('counter');
+        list.innerHTML = '';
+        let currentCount = 0;
+
+        // Sort Roster Alphabetically
+        roster.sort((a, b) => a.name.localeCompare(b.name)).forEach(kid => {
+            const checkInTime = sessionData[kid.name];
+            const isIn = !!checkInTime;
+            if (isIn) currentCount++;
+            
+            const row = document.createElement('div');
+            row.className = 'kid-row';
+            
+            // Clean name for JS safety
+            const safeName = kid.name.replace(/'/g, "\\'");
+
+            row.innerHTML = `
+                <div class="tap-area" onclick="toggleStatus('${safeName}')">
+                    <div class="info-container">
+                        <span class="name">${kid.name}</span>
+                        ${isIn ? `
+                            <a href="tel:${kid.phone}" class="parent-link" onclick="event.stopPropagation();">
+                                📞 ${kid.parent}: ${kid.phone}
+                            </a>
+                            <span class="time-label">Checked-in at ${checkInTime}</span>
+                        ` : ''}
+                    </div>
+                    <span class="status-badge ${isIn ? 'status-in' : 'status-out'}">
+                        ${isIn ? 'Sign Out' : 'Sign In'}
+                    </span>
+                </div>
+                <button class="btn-delete" onclick="deleteFromRoster('${safeName}')" title="Delete from roster">×</button>
+            `;
+            list.appendChild(row);
+        });
+
+        counter.innerText = `${currentCount} ${currentCount === 1 ? 'Student' : 'Students'} checked in`;
+        
+        // Save to LocalStorage
+        localStorage.setItem('ss_roster_v3', JSON.stringify(roster));
+        localStorage.setItem('ss_session_data_v3', JSON.stringify(sessionData));
+    }
+
+    function addToRoster() {
+        const nInput = document.getElementById('newKidName');
+        const pInput = document.getElementById('parentName');
+        const cInput = document.getElementById('parentContact');
+
+        const name = nInput.value.trim();
+        const pName = pInput.value.trim();
+        const pPhone = cInput.value.trim();
+
+        if (name && !roster.find(k => k.name === name)) {
+            roster.push({
+                name: name,
+                parent: pName || "No Parent Info",
+                phone: pPhone || "No Phone"
+            });
+            nInput.value = ''; pInput.value = ''; cInput.value = '';
+            render();
+        } else if (!name) {
+            alert("Please enter at least a child's name.");
+        } else {
+            alert("This child is already on the roster.");
+        }
+    }
+
+    function deleteFromRoster(name) {
+        if (confirm(`Are you sure you want to remove ${name}? This will clear them from the local list but won't delete past logs in Google Sheets.`)) {
+            roster = roster.filter(k => k.name !== name);
+            delete sessionData[name];
+            render();
+        }
+    }
+
+    async function toggleStatus(name) {
+        const kid = roster.find(k => k.name === name);
+        const isSigningIn = !sessionData[name];
+
+        if (isSigningIn) {
+            sessionData[name] = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+            delete sessionData[name];
+        }
+        
+        render(); // Update UI immediately
+
+        try {
+            await fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify({ 
+                    action: isSigningIn ? 'checkin' : 'checkout', 
+                    name: kid.name,
+                    parent: kid.parent,
+                    phone: kid.phone
+                })
+            });
+        } catch (e) {
+            console.error("Network error: Could not sync to Google Sheets.");
+        }
+    }
+
+    // Initial load
+    render();
+</script>
+
+<a href="https://docs.google.com/spreadsheets/d/1k915-yohVyCTKpTeLbc5mplTtYHpCesjKMO-lQvJWAo/edit?gid=0#gid=0">Link to Database</a>
+</body>
+</html>
