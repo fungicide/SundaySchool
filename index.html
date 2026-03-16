@@ -77,16 +77,15 @@
                     <input type="tel" id="parentContact" placeholder="0400 000 000" style="width: 100%; box-sizing: border-box;">
                 </div>
             </div>
-            <button class="btn-add" onclick="addToRoster()">+ Add to Class</button>
+            <button class="btn-add" onclick="addToRoster()">+ Add & Sign In</button>
         </div>
     </div>
 
     <div id="rosterList" class="list-container">
-        </div>
+    </div>
 </div>
 
 <script>
-    // REPLACE THIS URL with your latest Google Apps Script Web App URL
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyf-KbrYmwm3g69qZgInfNPwIK8Kcw2B5IOaFWTpkqMlfJebNyNnEtET01YCrH1Hy2WAg/exec";
     
     let roster = JSON.parse(localStorage.getItem('ss_roster_v3')) || [];
@@ -98,7 +97,6 @@
         list.innerHTML = '';
         let currentCount = 0;
 
-        // Sort Roster Alphabetically
         roster.sort((a, b) => a.name.localeCompare(b.name)).forEach(kid => {
             const checkInTime = sessionData[kid.name];
             const isIn = !!checkInTime;
@@ -106,8 +104,6 @@
             
             const row = document.createElement('div');
             row.className = 'kid-row';
-            
-            // Clean name for JS safety
             const safeName = kid.name.replace(/'/g, "\\'");
 
             row.innerHTML = `
@@ -132,7 +128,6 @@
 
         counter.innerText = `${currentCount} ${currentCount === 1 ? 'Student' : 'Students'} checked in`;
         
-        // Save to LocalStorage
         localStorage.setItem('ss_roster_v3', JSON.stringify(roster));
         localStorage.setItem('ss_session_data_v3', JSON.stringify(sessionData));
     }
@@ -152,8 +147,15 @@
                 parent: pName || "No Parent Info",
                 phone: pPhone || "No Phone"
             });
+            
+            // Clear inputs
             nInput.value = ''; pInput.value = ''; cInput.value = '';
-            render();
+            
+            // 1. Render first so the kid exists in the list
+            render(); 
+            // 2. Automatically trigger sign-in
+            toggleStatus(name); 
+
         } else if (!name) {
             alert("Please enter at least a child's name.");
         } else {
@@ -162,7 +164,7 @@
     }
 
     function deleteFromRoster(name) {
-        if (confirm(`Are you sure you want to remove ${name}? This will clear them from the local list but won't delete past logs in Google Sheets.`)) {
+        if (confirm(`Are you sure you want to remove ${name}?`)) {
             roster = roster.filter(k => k.name !== name);
             delete sessionData[name];
             render();
@@ -171,6 +173,8 @@
 
     async function toggleStatus(name) {
         const kid = roster.find(k => k.name === name);
+        if (!kid) return; // Guard clause
+
         const isSigningIn = !sessionData[name];
 
         if (isSigningIn) {
@@ -197,10 +201,11 @@
         }
     }
 
-    // Initial load
     render();
 </script>
 
-<a href="https://docs.google.com/spreadsheets/d/1k915-yohVyCTKpTeLbc5mplTtYHpCesjKMO-lQvJWAo/edit?gid=0#gid=0">Link to Database</a>
+<div style="margin-top: 20px; text-align: center;">
+    <a href="https://docs.google.com/spreadsheets/d/1k915-yohVyCTKpTeLbc5mplTtYHpCesjKMO-lQvJWAo/edit?gid=0#gid=0" target="_blank" style="color: var(--accent); font-size: 12px;">Link to Database</a>
+</div>
 </body>
 </html>
